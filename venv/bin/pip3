@@ -1,4 +1,4 @@
-#!/Users/chenjin/Desktop/privacy-project/music-rs/venv/bin/python3
+#!/Users/nazaryaremko/Downloads/PracticalDataScience-ENCA/recommendation_app/venv/bin/python3
 # -*- coding: utf-8 -*-
 import re
 import sys
