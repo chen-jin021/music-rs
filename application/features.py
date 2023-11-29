@@ -4,11 +4,11 @@ import json
 import pandas as pd
 
 def extract(URL):
-    client_id = "9e633bb51dd34fa19560e8b0cc8fcfd2" 
-    client_secret = "7686666c0dd449a0a2c6eb69a12ebb2a"
+    client_id = "9e633bb51dd34fa19560e8b0cc8fcfd2" # api key
+    client_secret = "7686666c0dd449a0a2c6eb69a12ebb2a" # api secret
 
     #use the clint secret and id details
-    client_credentials_manager = SpotifyClientCredentials(client_id=client_id,client_secret=client_secret)
+    client_credentials_manager = SpotifyClientCredentials(client_id=client_id, client_secret=client_secret)
     sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
 
     # the URI is split by ':' to get the username and playlist ID
