@@ -44,7 +44,8 @@ def generate_playlist_recos(df, features, nonplaylist_features):
     # Find cosine similarity between the playlist and the complete song set
     non_playlist_df['sim'] = cosine_similarity(nonplaylist_features.drop('id', axis = 1).values, features.values.reshape(1, -1))[:,0]
     non_playlist_df_top_40 = non_playlist_df.sort_values('sim',ascending = False).head(40)
-    
+
+    print(non_playlist_df_top_40[0]) # debug log statememt
     return non_playlist_df_top_40
 
 

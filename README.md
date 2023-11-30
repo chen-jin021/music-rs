@@ -94,7 +94,7 @@ pip3 install -r requirements.txt
 ## Repo Structure
 
 ```
-├── README.md          <- The top-level README for developers using this project.
+├── README.md              <- The top-level README for developers using this project.
 │
 ├── reference
 │   ├── notebooks          <- Serialized Jupyter notebooks created in the project.

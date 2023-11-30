@@ -2,10 +2,13 @@ import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 import json
 import pandas as pd
+from dotenv import load_dotenv
+load_dotenv()
+import os
 
 def extract(URL):
-    client_id = "9e633bb51dd34fa19560e8b0cc8fcfd2" # api key
-    client_secret = "7686666c0dd449a0a2c6eb69a12ebb2a" # api secret
+    client_id = os.getenv('SPOTIFY_CLIENT_ID') # api key
+    client_secret = os.getenv('SPOTIFY_CLIENT_SECRET') # api secret
 
     #use the clint secret and id details
     client_credentials_manager = SpotifyClientCredentials(client_id=client_id, client_secret=client_secret)
