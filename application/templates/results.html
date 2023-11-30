@@ -1,9 +1,15 @@
-{% extends "home.html" %}
-{% block results %}
-<div class='results'>
-    <h2 style='color: #ececec'>Results</h2>
-        {% for song in songs %}
-        <p class='song' style="font-size: 11pt"> <a  href={{song[1]}} target="_blank"> {{ song[0]}} </a> </p>
-        {% endfor %}    
+{% extends "home.html" %} {% block results %}
+<div class="results">
+	<h2 style="color: #ececec">Results</h2>
+	{% for song in songs %}
+	<p class="song" style="font-size: 11pt">
+		<a
+			href="{{song[1]}}"
+			target="_blank"
+			style="color: inherit; text-decoration: none"
+			>{{ song[0] }}</a
+		>
+	</p>
+	{% endfor %}
 </div>
 {% endblock %}
