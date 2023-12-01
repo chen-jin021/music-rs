@@ -25,3 +25,4 @@ threadpoolctl==3.0.0
 tqdm==4.62.3
 urllib3==1.26.7
 Werkzeug==2.0.2
+flask-cors-4.0.0
