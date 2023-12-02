@@ -1,3 +1,4 @@
+import time
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 import json
@@ -7,14 +8,13 @@ import random as rand
 import pandas as pd
 import string as string
 import logging
+import os
 from dotenv import load_dotenv
 load_dotenv()
-import os
 
-REFRESH_TOKEN = ''
-SPOTIFY_URL_TOKEN = 'https://accounts.spotify.com/api/token/'
-HEADER = 'application/x-www-form-urlencoded'
 
+client_id = os.getenv('SPOTIFY_CLIENT_ID')
+client_secret = os.getenv('SPOTIFY_CLIENT_SECRET')
 
 
 """
@@ -33,7 +33,6 @@ def createStateKey(size):
 	#https://stackoverflow.com/questions/2257441/random-string-generation-with-upper-case-letters-and-digits
 	return ''.join(rand.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(size))
 
-
 """
 Requests an access token from the Spotify API. Only called if no refresh token for the
 current user exists.
@@ -41,44 +40,70 @@ Returns: either [access token, refresh token, expiration time] or None if reques
 """
 def getToken(code):
     token_url = 'https://accounts.spotify.com/api/token'
-    client_id = os.getenv('SPOTIFY_CLIENT_ID')
-    client_secret = os.getenv('SPOTIFY_CLIENT_SECRET')
-    redirect_uri = os.getenv('SPOTIFY_REDIRECT_URI')
-    scope = os.getenv('SPOTIFY_SCOPE')
+ 
+    redirect_uri = os.getenv('SPOTIFY_REDIRECT_URI')          
+    client_creds = f"{client_id}:{client_secret}"
+    #print("client_creds:", client_creds)
 
-    encoded = base64.b64encode("{}:{}".format(client_id, client_secret))
-    authorization = (os.getenv('SPOTIFY_AUTHORIZATION')).format(encoded)
-    redirect_uri = os.getenv('SPOTIFY_REDIRECT_URI')
-
-    headers = {'Authorization': authorization, 'Accept': 'application/json', 'Content-Type': 'application/x-www-form-urlencoded'}
+    client_creds_b64 = base64.b64encode(client_creds.encode("ascii"))
+    #print("AUTHORIZATION:", client_creds_b64.decode("ascii"))
+    authorization = client_creds_b64.decode('ascii')
+              
+    headers = {'Authorization': f"Basic {authorization}", 'Content-Type': 'application/x-www-form-urlencoded'}
     body = {'code': code, 'redirect_uri': redirect_uri, 'grant_type': 'authorization_code'}
-    
-    post_response = requests.post(token_url, headers=headers, data=body)    
+    #print("code:", code)
+    post_response = requests.post(token_url, headers=headers, data=body)
+    #print("POST RESPONSE TEXT IS:", post_response.text)
+   
     # 200 code indicates access token was properly granted
     if post_response.status_code == 200:
-         json = post_response.json()
-         return json['access_token'], json['refresh_token'], json['expires_in']
+        json = post_response.json()
+        return json['access_token'], json['refresh_token'], json['expires_in']
     else:
-         logging.error('getToken:' + str(post_response.status_code))
-         return None
-    # post = requests.post(token_url, headers=headers, data=body)
-    # return handleToken(json.loads(post.text))
- 
-def handleToken(response):
-    auth_head = {"Authorization": "Bearer {}".format(response["access_token"])}
-    REFRESH_TOKEN = response["refresh_token"]
-    return [response["access_token"], auth_head, response["scope"], response["expires_in"]]
+        logging.error('getToken:' + str(post_response.status_code))
+        return None
 
-def refreshAuth():
-    body = {
-        "grant_type" : "refresh_token",
-        "refresh_token" : REFRESH_TOKEN
-    }
+"""
+Requests an access token from the Spotify API with a refresh token. Only called if an access
+token and refresh token were previously acquired.
+Returns: either [access token, expiration time] or None if request failed
+"""
+def refreshToken(refresh_token):
+	token_url = 'https://accounts.spotify.com/api/token'
+	client_creds = f"{client_id}:{client_secret}"
+	client_creds_b64 = base64.b64encode(client_creds.encode("ascii"))
+	authorization = client_creds_b64.decode('ascii')
 
-    post_refresh = requests.post(SPOTIFY_URL_TOKEN, data=body, headers=HEADER)
-    p_back = json.dumps(post_refresh.text)
-    
-    return handleToken(p_back)
+	headers = {'Authorization': f"Basic {authorization}", 'Accept': 'application/json', 'Content-Type': 'application/x-www-form-urlencoded'}
+	body = {'refresh_token': refresh_token, 'grant_type': 'refresh_token'}
+	post_response = requests.post(token_url, headers=headers, data=body)
+
+	# 200 code indicates access token was properly granted
+	if post_response.status_code == 200:
+		return post_response.json()['access_token'], post_response.json()['expires_in']
+	else:
+		logging.error('refreshToken:' + str(post_response.status_code))
+		return None
+
+
+"""
+Determines whether new access token has to be requested because time has expired on the 
+old token. If the access token has expired, the token refresh function is called. 
+Returns: None if error occured or 'Success' string if access token is okay
+"""
+def checkTokenStatus(session):
+	if time.time() > session['token_expiration']:
+		payload = refreshToken(session['refresh_token'])
+
+		if payload != None:
+			session['token'] = payload[0]
+			session['token_expiration'] = time.time() + payload[1]
+		else:
+			logging.error('checkTokenStatus')
+			return None
+
+	return "Success"
+
 
 def extract(URL):
     client_id = os.getenv('SPOTIFY_CLIENT_ID') # api key
