@@ -5,7 +5,6 @@ from application.features import *
 from application.model import *
 import time
 import logging
-import auth_startup
 import urllib.parse
 
 songDF = pd.read_csv("./data1/allsong_data.csv")
@@ -73,42 +72,26 @@ def callback():
    current_user = getUserInformation(session)
    session['user_id'] = current_user['id']
    logging.info('new user:' + session['user_id'])
-   
+   print("session['user_id']", session['user_id'])
    return redirect(session['previous_url'])
 
-"""
-Gets user information such as username, user ID, and user location.
-Returns: Json response of user information
-"""
-def getUserInformation(session):
-	url = 'https://api.spotify.com/v1/me'
-	payload = makeGetRequest(session, url)
 
-	if payload == None:
-		return None
+@app.route('/hello')
+def playlist():
+   # make sure application is authorized for user 
+   if session.get('token') == None or session.get('token_expiration') == None:
+      session['previous_url'] = '/create'
+      return redirect('/authorize')
 
-	return payload
-
-"""
-Makes a GET request with the proper headers. If the request succeeds, the json parsed
-response is returned. If the request fails because the access token has expired, the
-check token function is called to update the access token.
-Returns: Parsed json response if request succeeds or None if request fails
-"""
-def makeGetRequest(session, url, params={}):
-	headers = {"Authorization": "Bearer {}".format(session['token'])}
-	response = requests.get(url, headers=headers, params=params)
-
-	# 200 code indicates request was successful
-	if response.status_code == 200:
-		return response.json()
-
-	# if a 401 error occurs, update the access token
-	elif response.status_code == 401 and checkTokenStatus(session) != None:
-		return makeGetRequest(session, url, params)
-	else:
-		logging.error('makeGetRequest:' + str(response.status_code))
-		return None
+   # collect user information
+   if session.get('user_id') == None:
+      current_user = getUserInformation(session)
+      session['user_id'] = current_user['id']
+         
+   url = 'https://api.spotify.com/v1/me/playlists'
+   playlist = makeGetRequest(session, url)
+   print(playlist)
+   return render_template('recommend.html', playlists=playlist)
 
 
 @app.route('/recommend', methods=['POST'])
@@ -123,5 +106,106 @@ def recommend():
    my_songs = []
    for i in range(number_of_recs):
       my_songs.append([str(edm_top40.iloc[i,1]) + ' - '+ '"'+str(edm_top40.iloc[i,4])+'"', "https://open.spotify.com/track/"+ str(edm_top40.iloc[i,-6]).split("/")[-1]])
-   return render_template('results.html',songs= my_songs)
+   return render_template('results.html',songs=my_songs)
 
+
+@app.route('/tracks',  methods=['GET'])
+def tracks():
+	# make sure application is authorized for user 
+	if session.get('token') == None or session.get('token_expiration') == None:
+		session['previous_url'] = '/tracks'
+		return redirect('/authorize')
+
+	# collect user information
+	if session.get('user_id') == None:
+		current_user = getUserInformation(session)
+		session['user_id'] = current_user['id']
+
+	track_ids = getAllTopTracks(session)
+
+	if track_ids == None:
+		return render_template('index.html', error='Failed to gather top tracks.')
+		
+	return render_template('tracks.html', track_ids=track_ids)
+
+"""
+Called when a user starts to enter an artist or track name within the Create feature.
+Acts as an endpoint for autocomplete. Takes the entered text and sends back possible
+artist or track names.
+"""
+@app.route('/autocomplete', methods=['GET'])
+def autocomplete():
+    search = request.args.get('q')
+    results = searchSpotify(session, search)
+
+    return jsonify(matching_results=results)
+
+
+
+"""
+Page describes the web applications privacy policy as well as information about
+the features provided.
+"""
+@app.route('/information',  methods=['GET'])
+def information():
+	return render_template('information.html')
+
+
+"""
+Create Feature: Page allows users to enter artists/tracks and creates a playlist based
+on these entries.
+"""
+@app.route('/create',  methods=['GET'])
+def create():
+	# make sure application is authorized for user 
+	if session.get('token') == None or session.get('token_expiration') == None:
+		session['previous_url'] = '/create'
+		return redirect('/authorize')
+
+	# collect user information
+	if session.get('user_id') == None:
+		current_user = getUserInformation(session)
+		session['user_id'] = current_user['id']
+
+	return render_template('create.html')
+
+
+"""
+Called when a user creates a playlist through the Create feature. All of the user entered
+artists/track IDs are gathered from the POST data, as well as any tuneable attributes. Then
+create a new playlist, find recommended tracks, and fill the playlist with these tracks.
+"""
+@app.route('/create/playlist',  methods=['POST'])
+def createSelectedPlaylist():
+   # collect the IDs of the artists/tracks the user entered
+   search = []
+   for i in range(0, 5):
+      if str(i) in request.form:
+         search.append(request.form[str(i)])
+      else:
+         break
+      
+   print("search", search)
+   # store all selected attributes in a dict which can be easily added to GET body
+   tuneable_dict = {}
+   if 'acoustic_level' in request.form:
+      tuneable_dict.update({'acoustic': request.form['slider_acoustic']})
+
+   if 'danceability_level' in request.form:
+      tuneable_dict.update({'danceability': request.form['slider_danceability']})
+
+   if 'energy_level' in request.form:
+      tuneable_dict.update({'energy': request.form['slider_energy']})
+
+   if 'popularity_level' in request.form:
+      tuneable_dict.update({'popularity': request.form['slider_popularity']})
+
+   if 'valence_level' in request.form:
+      tuneable_dict.update({'valence': request.form['slider_valence']})
+
+   playlist_id, playlist_uri = createPlaylist(session, request.form['playlist_name'])
+   uri_list = getRecommendedTracks(session, search, tuneable_dict)
+   addTracksPlaylist(session, playlist_id, uri_list)
+
+   # send back the created playlist URI so the user is redirected to Spotify
+   return playlist_uri
