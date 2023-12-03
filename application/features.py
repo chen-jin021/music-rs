@@ -563,7 +563,7 @@ Returns: The ID and URI of the playlist
 """
 def createPlaylist(session, playlist_name):
 	url = 'https://api.spotify.com/v1/users/' + session['user_id'] + '/playlists'
-	data = "{\"name\":\"" + playlist_name + "\",\"description\":\"Created by Discover Daily\"}"
+	data = "{\"name\":\"" + playlist_name + "\",\"description\":\"Created by Cloudify\"}"
 	payload = makePostRequest(session, url, data)
 
 	if payload == None:

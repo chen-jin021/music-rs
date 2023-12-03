@@ -20,11 +20,6 @@ def home():
 def index():
 	return render_template('index.html')
 
-@app.route("/about")
-def about():
-   #render the about page
-   return render_template('about.html')
-
 @app.route('/authorize')
 def authorize():
    client_id = os.getenv('SPOTIFY_CLIENT_ID')
@@ -74,25 +69,6 @@ def callback():
    logging.info('new user:' + session['user_id'])
    print("session['user_id']", session['user_id'])
    return redirect(session['previous_url'])
-
-
-@app.route('/hello')
-def playlist():
-   # make sure application is authorized for user 
-   if session.get('token') == None or session.get('token_expiration') == None:
-      session['previous_url'] = '/create'
-      return redirect('/authorize')
-
-   # collect user information
-   if session.get('user_id') == None:
-      current_user = getUserInformation(session)
-      session['user_id'] = current_user['id']
-         
-   url = 'https://api.spotify.com/v1/me/playlists'
-   playlist = makeGetRequest(session, url)
-   print(playlist)
-   return render_template('recommend.html', playlists=playlist)
-
 
 @app.route('/recommend', methods=['POST'])
 def recommend():

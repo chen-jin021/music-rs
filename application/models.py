@@ -1,13 +1,3 @@
-"""
-DiscoverDaily Web Application: Database File
-Author: Luca Ostertag-Hill
-
-A database is required to store active users of the TopTracks program, which
-automatically updates a user's TopTracks playlist to keep it current. The table
-structure is specified here. This file contains a function to add new users to
-the database and one to update the database and user playlists.
-"""
-
 from main import Base, Session
 from functions import refreshToken, dbAddTracksPlaylist, dbClearPlaylist, dbGetTopTracksURI
 import logging
