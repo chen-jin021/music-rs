@@ -1,2 +1,4 @@
 .env
 launch.json
+.DS_Store
+.cache
