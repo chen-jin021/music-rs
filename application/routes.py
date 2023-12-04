@@ -14,11 +14,18 @@ complete_feature_set = pd.read_csv("./data1/complete_feature.csv")
 def home():
    session['previous_url'] = '/'
    #render the home page
-   return render_template('home.html')
+   return render_template('index.html')
 
 @app.route('/index')
 def index():
 	return render_template('index.html')
+
+"""
+customization by playlist
+"""
+@app.route('/playlist')
+def playlist():
+   return render_template('playlist.html')
 
 @app.route('/authorize')
 def authorize():
@@ -70,6 +77,10 @@ def callback():
    print("session['user_id']", session['user_id'])
    return redirect(session['previous_url'])
 
+"""
+recommend songs based on spotify playlist URL and cosine similarity to users,
+returns the list of spotify tracks with hyperlinks directing them to their user spotify page
+"""
 @app.route('/recommend', methods=['POST'])
 def recommend():
    #requesting the URL form the HTML form
@@ -85,25 +96,6 @@ def recommend():
    return render_template('results.html',songs=my_songs)
 
 
-@app.route('/tracks',  methods=['GET'])
-def tracks():
-	# make sure application is authorized for user 
-	if session.get('token') == None or session.get('token_expiration') == None:
-		session['previous_url'] = '/tracks'
-		return redirect('/authorize')
-
-	# collect user information
-	if session.get('user_id') == None:
-		current_user = getUserInformation(session)
-		session['user_id'] = current_user['id']
-
-	track_ids = getAllTopTracks(session)
-
-	if track_ids == None:
-		return render_template('index.html', error='Failed to gather top tracks.')
-		
-	return render_template('tracks.html', track_ids=track_ids)
-
 """
 Called when a user starts to enter an artist or track name within the Create feature.
 Acts as an endpoint for autocomplete. Takes the entered text and sends back possible
@@ -115,7 +107,6 @@ def autocomplete():
     results = searchSpotify(session, search)
 
     return jsonify(matching_results=results)
-
 
 
 """
