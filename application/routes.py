@@ -1,6 +1,7 @@
 import datetime
 from application import app
 from flask import Flask, render_template, request, flash, redirect, request, session, make_response, jsonify, abort
+from flask_cors import CORS, cross_origin
 from application.features import *
 from application.model import *
 import time
@@ -74,7 +75,7 @@ def callback():
    current_user = getUserInformation(session)
    session['user_id'] = current_user['id']
    logging.info('new user:' + session['user_id'])
-   print("session['user_id']", session['user_id'])
+   # print("session['user_id']", session['user_id'])
    return redirect(session['previous_url'])
 
 """
@@ -152,7 +153,7 @@ def createSelectedPlaylist():
       else:
          break
       
-   print("search", search)
+   print("SEARCH", search)
    # store all selected attributes in a dict which can be easily added to GET body
    tuneable_dict = {}
    if 'acoustic_level' in request.form:
@@ -175,4 +176,15 @@ def createSelectedPlaylist():
    addTracksPlaylist(session, playlist_id, uri_list)
 
    # send back the created playlist URI so the user is redirected to Spotify
-   return playlist_uri
+   playlist_id = playlist_uri.split(':')[-1]
+   # print("Playlist ID is: ", playlist_id)
+   web_player_url = f"https://open.spotify.com/playlist/{playlist_id}"
+   # print("web_player_url", web_player_url)
+   return web_player_url
+
+'''
+Exportation Feature
+'''
+@app.route("/export")
+def export():
+   return render_template('export.html')

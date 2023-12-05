@@ -13,6 +13,7 @@ $(document).ready(function () {
 			data: payload,
 			success: function (data) {
 				// Redirect user to Spotify
+				console.log(data);
 				window.location.href = data;
 			},
 		});

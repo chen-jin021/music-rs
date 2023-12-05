@@ -1,6 +1,6 @@
 import os
 from flask import Flask
-# from flask_cors import CORS, cross_origin
+from flask_cors import CORS, cross_origin
 
 #create an instance of a flask app and indicating its location
 app_path = os.path.dirname(__file__)
