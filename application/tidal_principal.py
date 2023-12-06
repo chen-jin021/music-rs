@@ -39,53 +39,10 @@ class TidalPrincipal:
 
         self._active_session.load_oauth_session(**args)
 
-    def _login(self):
-        try:
-            # attempt to reload existing session from file
-            with open(oauth_file) as f:
-                logger.info("Loading OAuth session from %s...", oauth_file)
-                data = json.load(f)
-                self._load_oauth_session(**data)
-        except Exception as e:
-            logger.info("Could not load OAuth session from %s: %s", oauth_file, e)
-
-        if not self._active_session.check_login():
-            logger.info("Creating new OAuth session...")
-            print("WE ARE HERE 1") #debug line
-            login_url, future = self._active_session.login_oauth_simple()
-
-            print("WE ARE HERE 2")
-            self._save_oauth_session(oauth_file)
-
-        if self._active_session.check_login():
-            logger.info("TIDAL Login OK")
-        else:
-            logger.info("TIDAL Login KO")
-            raise ConnectionError("Failed to log in.")
-    
     def _login_with_url(self):
         login, _ = self._active_session.login_oauth()
         return f"https://{login.verification_uri_complete}"
     
-    
-    def run(self):
-        # do login
-        self._login()
-
-        #album = self._active_session.album(110827651)  # Lets Rock (LOSSLESS, HIRES_LOSSLESS, MQA)
-        #print(album.name)
-        #print(album.image(640))
-        #tracks = album.tracks()
-
-        tracks = self._active_session.user.favorites.tracks()
-        for track in tracks:
-            print(track.name)
-            # for artist in track.artists:
-            #    print(' by: ', artist.name)
-            try:
-                print(track.get_url())
-            except:
-                continue
 
     @staticmethod
     def __normalize(query: str) -> str:
@@ -97,22 +54,29 @@ class TidalPrincipal:
 
     def search_track(self, song: Song) -> Union[str, None]:
         query: str = self.__normalize(f"{song.title} {song.artist}")
-        res: dict[str, Any] = self.session.search(query)
+        res: dict[str, Any] = self._active_session.search(query)
         tidal_id: Union[str, None] = None
         try:
-            for t in res['tracks']:
-                if t.isrc == song.isrc:
-                    tidal_id = t.id
-                    break
-            if not tidal_id:
-                possible_ids = filter(lambda s: song.artist in s.artist.name, res['tracks'])
-                tidal_id = list(possible_ids)[0].id
-        except Exception:
+            if res['tracks']:
+                tidal_id = res['tracks'][0].id
+                # print("[INSIDE Tidal_Principal] TIDAL_ID is: ", tidal_id)
+
+        except Exception as e:
+            logging.error(f"Error searching for track: {e}")
             pass
         
         return tidal_id
     
-    def add_to_playlist(self, playlist_name: str, tids: list[str]):
-        playlist = self.session.user.create_playlist(playlist_name, "Songs saved from spotify")
-        playlist.add(tids)
-        
+    def add_to_playlist(self, playlist_name: str, tidal_track_ids: list[str]):
+        # Ensure the session is logged in
+        # print(tidal_track_ids)
+        if not self._active_session.check_login():
+            raise Exception("Not logged in to Tidal")
+
+        # Create a new playlist
+        user = self._active_session.user
+        new_playlist = user.create_playlist(playlist_name, "Playlist created from Spotify recommendations")
+
+        # Add tracks to the playlist
+        new_playlist.add(tidal_track_ids)
+

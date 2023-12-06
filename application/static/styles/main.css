@@ -8,9 +8,9 @@ body {
 	color: #000 !important;
 	background: linear-gradient(
 		349deg,
-		rgba(45, 45, 45, 1) 15%,
-		rgb(124, 61, 120) 55%,
-		rgb(21, 22, 25) 77%
+		rgb(123, 122, 122) 15%,
+		rgb(19, 19, 19) 65%,
+		rgb(147, 148, 149) 87%
 	);
 }
 
@@ -126,10 +126,10 @@ li.nav-item {
 	margin-bottom: 0 !important;
 	background-image: linear-gradient(
 			rgba(61, 60, 60, 0.8) 10%,
-			rgba(139, 68, 134, 0.5) 50%,
+			rgba(110, 110, 110, 0.5) 50%,
 			rgba(55, 57, 60, 0.15) 77%
 		),
-		url("header.jpg");
+		url("header.png");
 	background-size: cover;
 	color: #fff !important;
 	font-family: Montserrat, sans-serif;

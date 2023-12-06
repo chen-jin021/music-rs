@@ -33,6 +33,7 @@ customization by playlist
 """
 @app.route('/playlist')
 def playlist():
+   session['previous_url'] = '/playlist'
    return render_template('playlist.html')
 
 @app.route('/authorize')
@@ -91,6 +92,7 @@ returns the list of spotify tracks with hyperlinks directing them to their user 
 """
 @app.route('/recommend', methods=['POST'])
 def recommend():
+   # print("recommend() CALLED")
    #requesting the URL form the HTML form
    URL = request.form['URL']
    #using the extract function to get a features dataframe
@@ -101,8 +103,51 @@ def recommend():
    my_songs = []
    for i in range(number_of_recs):
       my_songs.append([str(edm_top40.iloc[i,1]) + ' - '+ '"'+str(edm_top40.iloc[i,4])+'"', "https://open.spotify.com/track/"+ str(edm_top40.iloc[i,-6]).split("/")[-1]])
+
+   # store my_songs in session so it can be accessed by the export feature
+   session['my_songs'] = my_songs
    return render_template('results.html',songs=my_songs)
 
+'''
+Exportation Feature with Tidal
+'''
+@app.route("/playlist/export")
+def export():
+   # instantiate a Tidal principal
+   login_url = tidal._login_with_url()
+   # Redirect user to TIDAL authorization page
+   return jsonify({'login_url': login_url})
+
+@app.route('/check_tidal_auth')
+def check_tidal_auth():
+    # Logic to determine if the TIDAL authentication is successful
+    if tidal._active_session.check_login():
+        return jsonify({'authenticated': True})
+    else:
+        return jsonify({'authenticated': False})
+
+"""
+Optinal saving oauth session into file within the `/tidal_callback` route
+If enable the below comments, the oauth session will be saved into `tidal-oauth.json` file under application folder
+"""
+@app.route('/tidal_callback')
+def tidal_callback():
+   # oauth_file = Path("application/tidal-oauth.json")
+   # tidal._save_oauth_session(oauth_file) 
+   return redirect('/tidal_export')
+
+@app.route('/tidal_export')
+def tidal_export():
+   #retrieve my_songs from session
+   my_songs = session.get('my_songs', [])
+   parsed_songs = parse_song_info(my_songs)
+   # print the dictionary parsed_songs
+   tidal_ids = []
+   for song in parsed_songs:
+      tidal_ids.append(tidal.search_track(song))
+   tidal.add_to_playlist("tidalify Recommendations", tidal_ids)
+
+   return redirect("https://listen.tidal.com/my-collection/playlists")
 
 """
 Called when a user starts to enter an artist or track name within the Create feature.
@@ -189,30 +234,4 @@ def createSelectedPlaylist():
    # print("web_player_url", web_player_url)
    return web_player_url
 
-'''
-Exportation Feature
-'''
 
-@app.route("/playlist/export")
-def export():
-   # instantiate a Tidal principal
-   login_url = tidal._login_with_url()
-   print("WITHIN ROUTES:", login_url)
-
-   # # Redirect user to TIDAL authorization page
-   return jsonify({'login_url': login_url})
-
-@app.route('/check_tidal_auth')
-def check_tidal_auth():
-    # Logic to determine if the TIDAL authentication is successful
-    if tidal._active_session.check_login():
-        return jsonify({'authenticated': True})
-    else:
-        return jsonify({'authenticated': False})
-
-@app.route('/tidal_callback')
-def tidal_callback():
-   print("TIDAL CALLBACK")
-   oauth_file = Path("application/tidal-oauth.json")
-   tidal._save_oauth_session(oauth_file)
-   return redirect(session['previous_url'])

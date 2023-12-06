@@ -1,18 +1,34 @@
-# Enhance your Playlists with Machine Learning: Spotify Automatic Playlist Continuation
+# Tidalify - Enhanced Music Recommender Engine with Machine Learning and Custom Tuning [Spotify & TIDAL]
 
-Referenced from framework [Enhance your Playlists with Machine Learning: Spotify Automatic Playlist Continuation](https://medium.com/@enjui.chang/enhance-your-playlists-with-machine-learning-spotify-automatic-playlist-continuation-2aae2c926e77). The four articles in the series is linked below:
+![index_page](./assets/index.png)
 
-**Part I**: [Extracting song data from Spotify’s API in Python](https://cameronwwatts.medium.com/extracting-song-data-from-the-spotify-api-using-python-b1e79388d50)
+A Flask project that offers two features of which provides music recommendations to users based on Spotify music platform.
 
-**Part II**: EDA and Clustering
+## Feature 1: Recommender System based on Content-Based Filtering Algorithm
 
-**Part III**: [Building a Song Recommendation System with Spotify](https://medium.com/@enjui.chang/part-iii-building-a-song-recommendation-system-with-spotify-cf76b52705e7)
+- This project uses data from 2018 RecSys where 1 million playlist are provided as raw data set
+- The Content-Based Filtering algorithm is referenced from the below framework workflow
 
-**Part IV**: [Deploying a Spotify Recommendation Model with Flask](https://medium.com/@yaremko.nazar/deploying-a-spotify-recommendation-model-with-flask-20007b76a20f)
+  - **Part I**: [Extracting song data from Spotify’s API in Python](https://cameronwwatts.medium.com/extracting-song-data-from-the-spotify-api-using-python-b1e79388d50)
+  - **Part II**: EDA and Clustering
+  - **Part III**: [Building a Song Recommendation System with Spotify](https://medium.com/@enjui.chang/part-iii-building-a-song-recommendation-system-with-spotify-cf76b52705e7)
+  - **Part IV**: [Deploying a Spotify Recommendation Model with Flask](https://medium.com/@yaremko.nazar/deploying-a-spotify-recommendation-model-with-flask-20007b76a20f)
+  - **Part IV**: [Deploying a Spotify Recommendation Model with Flask](https://medium.com/@yaremko.nazar/deploying-a-spotify-recommendation-model-with-flask-20007b76a20f)
 
-## Introduction
+- Based on the prediction algorithm, we fetch recommended songs (under Spotify context) and gave users the ability to export into their own TIDAL music account
+  - this is done through TIDAL's oauth2 protocol for user authorization. This project used the `tidalapi` API for user authorization. For further references: [`tidalapi` Documentation](https://pypi.org/project/tidalapi/)
 
-The goal of this project is to recommend songs for a given playlist. This project starts from data collection all the way to model deployment to ensure you have a working model to showcase.
+![playlist_recsys](./assets/playlist.png)
+
+## Feature 2: `/Recommend` API & User Tuning
+
+For `Custom Tuning` feature, user have the ability to alter some of the audio features (12 sonic characteristics that are availble through Spotify API) for music recommendation. They can input their favorite songs or artists along with `auio_features` to generate a playlist recommended to them straight back in their Spotify playlist. This feature uses the Spotify's oauth protocol for user authentication.
+
+![custom_tuning](./assets/custom_tuning.png)
+
+## Information Page
+
+For more information regarding the functionalities offered in this projuct, please refer to the `information` page. Since the application needs to access features within Spotify SDK, it requires certain user scopes. You can also revoke `permissions` from the link provided here.
 
 ## How to use
 
@@ -22,74 +38,13 @@ To clone the repository:
 git clone https://github.com/chen-jin021/music-rs.git
 ```
 
-## Process
-
-The following image is the flow chart of the project:
-
-<img width="810" alt="Screen Shot 2021-12-18 at 12 02 45 AM" src="https://user-images.githubusercontent.com/55577469/146573138-09798463-c9fe-45b9-adc3-f95556e30564.png">
-
-### Data extraction
-
-Here are a couple of things you should know before starting the project.
-
-#### Spotfiy API Acquisition
-
-If you haven’t used an API before, the use of various keys for authentication, and the sending of requests can prove to be a bit daunting. The first thing we’ll look at is getting keys to use. For this, we need a [Spotify for developers] (https://developer.spotify.com/) account. This is the same as a Spotify account, and doesn’t require Spotify Premium. From here, go to the dashboard and “create an app”. Now, we can access a public and private key, needed to use the API.
-
-#### Spotify Credentials Storage and Access
-
-Now that we have an app, we can get a client ID and a client secret for this app. Both of these will be required to authenticate with the Spotify web API for our application, and can be thought of as a kind of username and password for the application. It is best practice not to share either of these, but especially don’t share the client secret key. To prevent this, we can keep it in a separate file, which, if you’re using Git for version control, should be Gitignored.
-
-Spotify credentials should be stored the in the a `secret.txt` file with the first line as the **credential id** and the second line as the **secret key**:
-
-<img width="293" alt="Screen Shot 2021-12-18 at 12 10 03 AM" src="https://user-images.githubusercontent.com/55577469/146574104-804def73-54ec-449a-931c-86372d3a07a6.png">
-
-To access this credentials, please use the following code:
-
-```python
-with open("secret.txt") as f:
-    secret_ls = f.readlines()
-    cid = secret_ls[0][:-2]
-    secret = secret_ls[1]
-```
-
-### EDA and clustering
-
-### Recommendation Model
-
-The recommendation model is summarized in the `content_based_recsys.ipynb` notebook. In this section, we will go through the process of building a content-based filtering recommendation. The following parts will be covered:
-
-1. Package Setup
-2. Preprocessing
-3. Feature Generation
-4. Content-based Filtering Recommendation
-
-Please follow the instruction in the notebook to produce the result.
-
-### Deployment
-
-In order to access the final version of the app, please visit the following link: [https://music-recommendation-engine-417ff5fe733e.herokuapp.com/](https://music-recommendation-engine-417ff5fe733e.herokuapp.com/)
-A demo version of the website can be accessed and tested out there.
-Alternatively, to test the full functionality of the model, please, download the repository data and run the following commands:
-
-```sh
-python wsgi.py
-```
-
-Then visit the local host and try out the model using any playlist!
-
-To create a virtual environment, you can run the following commands:
-
-```sh
-python3 -m venv venv
-source venv/bin/activate (or venv\Scripts\activate if you are using Windows)
-```
-
-Installing dependencies in virtual environment:
+To install the dependencies:
 
 ```
-pip3 install -r requirements.txt
+pip install -r requirements.txt
 ```
+
+You will also need to set up your own environment variables for Spotify and Tidal. Variables like `CLIENT_ID`, `CLIENT_SECRET` are used for API calls to these two music platforms. For Spotify API acquisition, please aquire necessary credentials here [Spotify for developers](https://developer.spotify.com/) account. You will also need to set up the callback route within Spotify Developer Dashboard for rerouting. Simiarly for TIDAL.
 
 ## Repo Structure
 

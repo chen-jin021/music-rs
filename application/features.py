@@ -9,6 +9,8 @@ import pandas as pd
 import string as string
 import logging
 import os
+import re
+from application.song import Song
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -563,7 +565,7 @@ Returns: The ID and URI of the playlist
 """
 def createPlaylist(session, playlist_name):
 	url = 'https://api.spotify.com/v1/users/' + session['user_id'] + '/playlists'
-	data = "{\"name\":\"" + playlist_name + "\",\"description\":\"Recommended by Cloudify\"}"
+	data = "{\"name\":\"" + playlist_name + "\",\"description\":\"Recommended by tidalify\"}"
 	payload = makePostRequest(session, url, data)
 
 	if payload == None:
@@ -759,3 +761,28 @@ def dbGetTopTracksURI(access_token, time, limit=25):
 
 	return track_uri
 
+
+'''
+For TIDAL Exportation
+'''
+# def parse_song_info(songs):
+#     parsed_songs = []
+#     for song in songs:
+#         # Assuming song format is "Artist - 'Title'"
+#         match = re.match(r"(.+) - \"(.+)\"", song[0])
+#         if match:
+#             artist, title = match.groups()
+#             parsed_songs.append((artist.strip(), title.strip()))
+#     return parsed_songs
+
+def parse_song_info(songs):
+    parsed_songs = []
+    for song in songs:
+        # Assuming song format is "Artist - 'Title'"
+        match = re.match(r"(.+) - \"(.+)\"", song[0])
+        if match:
+            artist, title = match.groups()
+            # Create a Song object with title and artist. ISRC is left blank.
+            parsed_song = Song(title.strip(), artist.strip())
+            parsed_songs.append(parsed_song)
+    return parsed_songs
