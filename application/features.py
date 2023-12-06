@@ -181,7 +181,7 @@ Returns: Parsed json response if request succeeds or None if request fails
 def makeGetRequest(session, url, params={}):
     headers = {"Authorization": "Bearer {}".format(session['token'])}
     response = requests.get(url, headers=headers, params=params)
-    print("GET RESPONSE TEXT IS:", response.text)
+    # print("GET RESPONSE TEXT IS:", response.text)
     # 200 code indicates request was successful
     if response.status_code == 200:
         return response.json()
@@ -758,5 +758,4 @@ def dbGetTopTracksURI(access_token, time, limit=25):
 		track_uri.append(track['uri'])
 
 	return track_uri
-
 

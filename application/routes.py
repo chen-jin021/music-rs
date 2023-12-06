@@ -7,9 +7,16 @@ from application.model import *
 import time
 import logging
 import urllib.parse
+import tidalapi
+from typing import Union
+from application.tidal_principal import TidalPrincipal
+from pathlib import Path
+
+
 
 songDF = pd.read_csv("./data1/allsong_data.csv")
 complete_feature_set = pd.read_csv("./data1/complete_feature.csv")
+tidal = TidalPrincipal()
 
 @app.route("/")
 def home():
@@ -104,10 +111,10 @@ artist or track names.
 """
 @app.route('/autocomplete', methods=['GET'])
 def autocomplete():
-    search = request.args.get('q')
-    results = searchSpotify(session, search)
+   search = request.args.get('q')
+   results = searchSpotify(session, search)
 
-    return jsonify(matching_results=results)
+   return jsonify(matching_results=results)
 
 
 """
@@ -153,7 +160,7 @@ def createSelectedPlaylist():
       else:
          break
       
-   print("SEARCH", search)
+   # print("SEARCH", search)
    # store all selected attributes in a dict which can be easily added to GET body
    tuneable_dict = {}
    if 'acoustic_level' in request.form:
@@ -185,6 +192,27 @@ def createSelectedPlaylist():
 '''
 Exportation Feature
 '''
-@app.route("/export")
+
+@app.route("/playlist/export")
 def export():
-   return render_template('export.html')
+   # instantiate a Tidal principal
+   login_url = tidal._login_with_url()
+   print("WITHIN ROUTES:", login_url)
+
+   # # Redirect user to TIDAL authorization page
+   return jsonify({'login_url': login_url})
+
+@app.route('/check_tidal_auth')
+def check_tidal_auth():
+    # Logic to determine if the TIDAL authentication is successful
+    if tidal._active_session.check_login():
+        return jsonify({'authenticated': True})
+    else:
+        return jsonify({'authenticated': False})
+
+@app.route('/tidal_callback')
+def tidal_callback():
+   print("TIDAL CALLBACK")
+   oauth_file = Path("application/tidal-oauth.json")
+   tidal._save_oauth_session(oauth_file)
+   return redirect(session['previous_url'])

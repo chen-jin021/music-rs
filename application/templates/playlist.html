@@ -8,6 +8,8 @@
 </link>
 
 <script src="{{ url_for('static', filename='js/create.js') }}"></script>
+<script src="{{ url_for('static', filename='js/export.js') }}"></script>
+
 <script>var bootstrapTooltip = jQuery.fn.tooltip;</script>
 <!-- Naming conflict for tooltip with Bootstrap and JQuery -->
 <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
@@ -63,6 +65,10 @@
         <div class="py-5">
           <div class="container">
             <h3>Results Will Show Here</h3>
+            <button id="exportToTidal" class="button1 btn-info btn-block form-button"
+              style="color: black; border: none; outline: none;" data-login-url="{{ login_url }}">
+              Export to Tidal
+            </button>
             <div class="row " style="padding-left: 15px;">
               <!-- Iterate over the songs variable -->
               {% for song in songs %}
