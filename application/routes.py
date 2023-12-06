@@ -13,7 +13,7 @@ from application.tidal_principal import TidalPrincipal
 from pathlib import Path
 
 
-
+# pretrained data
 songDF = pd.read_csv("./data1/allsong_data.csv")
 complete_feature_set = pd.read_csv("./data1/complete_feature.csv")
 tidal = TidalPrincipal()
@@ -57,7 +57,6 @@ Called after a new user has authorized the application through the Spotift API p
 Stores user information in a session and redirects user back to the page they initally
 attempted to visit.
 """
-
 @app.route('/callback')
 # @cross_origin()
 def callback():
