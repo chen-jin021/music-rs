@@ -142,7 +142,7 @@ def tidal_export():
    parsed_songs = parse_song_info(my_songs)
    # print the dictionary parsed_songs
    tidal_ids = []
-   for song in parsed_songs:
+   for song in parsed_songs: 
       tidal_ids.append(tidal.search_track(song))
    tidal.add_to_playlist("tidalify Recommendations", tidal_ids)
 

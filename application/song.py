@@ -7,7 +7,7 @@ class Song:
 
     def get_dictionary(self) -> dict[str, str]:
         return {
-            "title": self.title,
+        "title": self.title,
             "artist": self.artist,
             # "isrc": self.isrc
         }

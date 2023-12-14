@@ -57,26 +57,30 @@ class TidalPrincipal:
         res: dict[str, Any] = self._active_session.search(query)
         tidal_id: Union[str, None] = None
         try:
-            if res['tracks']:
+            if res['tracks'] and res['tracks'][0].id is not None:
                 tidal_id = res['tracks'][0].id
-                # print("[INSIDE Tidal_Principal] TIDAL_ID is: ", tidal_id)
+                print("[INSIDE Tidal_Principal] TIDAL_ID is: ", tidal_id)
 
         except Exception as e:
             logging.error(f"Error searching for track: {e}")
             pass
         
         return tidal_id
+
     
     def add_to_playlist(self, playlist_name: str, tidal_track_ids: list[str]):
         # Ensure the session is logged in
-        # print(tidal_track_ids)
         if not self._active_session.check_login():
             raise Exception("Not logged in to Tidal")
 
         # Create a new playlist
         user = self._active_session.user
         new_playlist = user.create_playlist(playlist_name, "Playlist created from Spotify recommendations")
+        print("Tidal_track_id, ", tidal_track_ids)
+
+        # Filter out None values from tidal_track_ids
+        valid_track_ids = [tid for tid in tidal_track_ids if tid is not None]
 
         # Add tracks to the playlist
-        new_playlist.add(tidal_track_ids)
+        new_playlist.add(valid_track_ids)
 

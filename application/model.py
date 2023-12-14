@@ -47,11 +47,10 @@ def generate_playlist_recos(df, features, nonplaylist_features):
     return non_playlist_df_top_40
 
 
-def recommend_from_playlist(songDF,complete_feature_set,playlistDF_test):
-
+def recommend_from_playlist(songDF, complete_feature_set, playlistDF_test):
     # Find feature
     complete_feature_set_playlist_vector, complete_feature_set_nonplaylist = generate_playlist_feature(complete_feature_set, playlistDF_test)
-    
+    print(complete_feature_set_playlist_vector)
     # Generate recommendation
     top40 = generate_playlist_recos(songDF, complete_feature_set_playlist_vector, complete_feature_set_nonplaylist)
 
