@@ -83,7 +83,8 @@ def callback():
    session['user_id'] = current_user['id']
    logging.info('new user:' + session['user_id'])
    # print("session['user_id']", session['user_id'])
-   return redirect(session['previous_url'])
+   # return redirect(session['previous_url'])
+   return redirect('/playlist')
 
 """
 recommend songs based on spotify playlist URL and cosine similarity to users,
