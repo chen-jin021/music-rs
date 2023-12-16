@@ -10,7 +10,9 @@ import string as string
 import logging
 import os
 import re
+from application.model import recommend_from_playlist
 from application.song import Song
+from spotipy import SpotifyClientCredentials, Spotify
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -107,55 +109,55 @@ def checkTokenStatus(session):
 	return "Success"
 
 
-def extract(URL):
-	client_id = os.getenv('SPOTIFY_CLIENT_ID') # api key
-	client_secret = os.getenv('SPOTIFY_CLIENT_SECRET') # api secret
+def extract(playlist_url):
+    client_id = os.getenv('SPOTIFY_CLIENT_ID') # api key
+    client_secret = os.getenv('SPOTIFY_CLIENT_SECRET') # api secret
 
-	#use the clint secret and id details
-	client_credentials_manager = SpotifyClientCredentials(client_id=client_id, client_secret=client_secret)
-	sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
+    # Use the client secret and id details
+    client_credentials_manager = SpotifyClientCredentials(client_id=client_id, client_secret=client_secret)
+    sp = Spotify(client_credentials_manager=client_credentials_manager)
 
-	# the URI is split by ':' to get the username and playlist ID
-	playlist_id = URL.split("/")[4].split("?")[0]
-	playlist_tracks_data = sp.playlist_tracks(playlist_id)
-	
-	#lists that will be filled in with features
-	playlist_tracks_id = []
-	playlist_tracks_titles = []
-	playlist_tracks_artists = []
-	playlist_tracks_first_artists = []
+    # The URI is split by '/' and '?' to get the playlist ID
+    playlist_id = playlist_url.split("/")[4].split("?")[0]
 
-	#go through the dictionary to extract the data
-	for track in playlist_tracks_data['items']:
-			# print("TRACK is: ", track)
-			playlist_tracks_id.append(track['track']['id'])
-			playlist_tracks_titles.append(track['track']['name'])
-			# adds a list of all artists involved in the song to the list of artists for the playlist
-			artist_list = []
-			for artist in track['track']['artists']:
-					artist_list.append(artist['name'])
-			playlist_tracks_artists.append(artist_list)
-			playlist_tracks_first_artists.append(artist_list[0])
+    try:
+        playlist_tracks_data = sp.playlist_tracks(playlist_id)
+        # Check if the playlist_tracks_data is valid
+        if 'items' not in playlist_tracks_data or not playlist_tracks_data['items']:
+            return "Invalid playlist data", False
+    except spotipy.exceptions.SpotifyException as e:
+        # Handle exception thrown by spotipy if the playlist ID is not valid
+        return f"An error occurred while retrieving playlist tracks: {e}", False
 
-	#create a dataframe
-	features = sp.audio_features(playlist_tracks_id)
-	features_df = pd.DataFrame(data=features, columns=features[0].keys())
-	# print("The Selected Features Data Frame:", features_df)
+    # Lists that will be filled in with features
+    playlist_tracks_id = []
+    playlist_tracks_titles = []
+    playlist_tracks_artists = []
+    playlist_tracks_first_artists = []
 
-	features_df['title'] = playlist_tracks_titles
-	# print all the features_df's title
-	features_df['first_artist'] = playlist_tracks_first_artists
-	features_df['all_artists'] = playlist_tracks_artists
+    # Go through the dictionary to extract the data
+    for track in playlist_tracks_data['items']:
+        playlist_tracks_id.append(track['track']['id'])
+        playlist_tracks_titles.append(track['track']['name'])
+        # Adds a list of all artists involved in the song to the list of artists for the playlist
+        artist_list = [artist['name'] for artist in track['track']['artists']]
+        playlist_tracks_artists.append(artist_list)
+        playlist_tracks_first_artists.append(artist_list[0])
 
-	# print("playlist tracks artists ARE", playlist_tracks_artists)
-	# print("AND the track titles ARE", playlist_tracks_titles)
+    # Create a dataframe
+    features = sp.audio_features(playlist_tracks_id)
+    features_df = pd.DataFrame(data=features, columns=features[0].keys())
 
-	features_df = features_df[['id', 'title', 'first_artist', 'all_artists',
-															'danceability', 'energy', 'key', 'loudness',
-															'mode', 'acousticness', 'instrumentalness',
-															'liveness', 'valence', 'tempo',
-															'duration_ms', 'time_signature']]
-	return features_df
+    features_df['title'] = playlist_tracks_titles
+    features_df['first_artist'] = playlist_tracks_first_artists
+    features_df['all_artists'] = playlist_tracks_artists
+
+    features_df = features_df[['id', 'title', 'first_artist', 'all_artists',
+                               'danceability', 'energy', 'key', 'loudness',
+                               'mode', 'acousticness', 'instrumentalness',
+                               'liveness', 'valence', 'tempo',
+                               'duration_ms', 'time_signature']]
+    return features_df, True
 
 
 def getAllTopTracks(session, limit=10):
@@ -772,16 +774,6 @@ def dbGetTopTracksURI(access_token, time, limit=25):
 '''
 For TIDAL Exportation
 '''
-# def parse_song_info(songs):
-#     parsed_songs = []
-#     for song in songs:
-#         # Assuming song format is "Artist - 'Title'"
-#         match = re.match(r"(.+) - \"(.+)\"", song[0])
-#         if match:
-#             artist, title = match.groups()
-#             parsed_songs.append((artist.strip(), title.strip()))
-#     return parsed_songs
-
 def parse_song_info(songs):
     parsed_songs = []
     for song in songs:

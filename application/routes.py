@@ -11,12 +11,20 @@ import tidalapi
 from typing import Union
 from application.tidal_principal import TidalPrincipal
 from pathlib import Path
+import os
+import re
 
-
+current_script_dir = os.path.abspath(os.path.dirname(__file__))
+parent_dir = os.path.dirname(current_script_dir)
+data1_dir = os.path.join(parent_dir, 'data1')
+csv_file_path = os.path.join(data1_dir, 'allsong_data.csv')
+complete_feature_set = os.path.join(data1_dir, 'complete_feature.csv')
 # pretrained data
-songDF = pd.read_csv("./data1/allsong_data.csv")
-complete_feature_set = pd.read_csv("./data1/complete_feature.csv")
+songDF = pd.read_csv(csv_file_path)
+complete_feature_set = pd.read_csv(complete_feature_set)
 tidal = TidalPrincipal()
+# Regular expression pattern for a Spotify playlist URL
+
 
 @app.route("/")
 def home():
@@ -36,7 +44,7 @@ def playlist():
    session['previous_url'] = '/playlist'
    return render_template('playlist.html')
 
-@app.route('/authorize')
+@app.route('/authorize', methods=['GET'])
 def authorize():
    client_id = os.getenv('SPOTIFY_CLIENT_ID')
    client_secret = os.getenv('SPOTIFY_CLIENT_SECRET')
@@ -57,10 +65,10 @@ Called after a new user has authorized the application through the Spotift API p
 Stores user information in a session and redirects user back to the page they initally
 attempted to visit.
 """
-@app.route('/callback')
+@app.route('/callback', methods=['GET'])
 # @cross_origin()
 def callback():
-   # print("session['state_key']", session['state_key'])
+   print("session['state_key']", session['state_key'])
    # make sure the response came from Spotify
    if request.args.get('state') != session['state_key']:
       return render_template('index.html', error='State failed.')
@@ -83,8 +91,7 @@ def callback():
    session['user_id'] = current_user['id']
    logging.info('new user:' + session['user_id'])
    # print("session['user_id']", session['user_id'])
-   # return redirect(session['previous_url'])
-   return redirect('/create')
+   return redirect(session['previous_url'])
 
 """
 recommend songs based on spotify playlist URL and cosine similarity to users,
@@ -95,8 +102,12 @@ def recommend():
    # print("recommend() CALLED")
    #requesting the URL form the HTML form
    URL = request.form['URL']
-   #using the extract function to get a features dataframe
-   df = extract(URL)
+   
+   df, success = extract(URL)
+   if not success:
+      print("error in extracting the URL", df)
+      return redirect(('/playlist'))
+   
    #retrieve the results and get as many recommendations as the user requested
    edm_top40 = recommend_from_playlist(songDF, complete_feature_set, df)
    number_of_recs = int(request.form['number-of-recs'])
@@ -235,3 +246,209 @@ def createSelectedPlaylist():
    return web_player_url
 
 
+'''
+API for getting the recommendations
+'''
+@app.route('/api/recommend', methods=['GET'])
+def api_recommend():
+   playlist_url = request.args.get('playlist_url')
+   number_of_recs = request.args.get('number_of_recs', default=10, type=int)  # New line
+
+   if number_of_recs > 40:
+      return jsonify({'error': 'Number of recommendations cannot exceed 40'}), 400
+
+   # print("playlist_url", playlist_url)
+   if not playlist_url:
+      return jsonify({'error': 'Playlist URL is required'}), 400
+
+   df, success = extract(playlist_url)
+   if not success:
+      return jsonify({'error': df}), 400
+   try:
+      edm_top40 = recommend_from_playlist(songDF, complete_feature_set, df)
+      recommendations = []
+      for i in range(number_of_recs):
+         track = edm_top40.iloc[i]
+         recommendations.append({
+               'title': str(track[1]) + ' - ' + '"' + str(track[4]) + '"',
+               'spotify_url': "https://open.spotify.com/track/" + str(track[-6]).split("/")[-1]
+         })
+
+      return jsonify({'recommendations': recommendations})
+
+   except Exception as e:
+      app.logger.error(f'Error in generating recommendations: {e}')
+      return jsonify({'error': 'Internal server error'}), 500
+
+
+'''
+create a batch recommendation API where user inputs a json with links of playlist
+and we generate the recommendations for them
+note: user specified number of recs is applied per operation
+'''
+@app.route('/api/batch_recommend', methods=['POST'])
+def batch_recommend():
+    data = request.json
+    playlist_urls = data.get('playlist_urls')
+    number_of_recs = data.get('number_of_recs', 10)
+
+    if number_of_recs > 40: 
+        return jsonify({'error': 'Number of recommendations cannot exceed 40'}), 400
+
+    if not playlist_urls:
+        return jsonify({'error': 'Playlist URLs are required'}), 400
+
+    all_recommendations = []
+
+    for playlist_url in playlist_urls:
+        seen_tracks = set()
+
+        df, success = extract(playlist_url)
+        if not success:
+            all_recommendations.append({
+                'playlist_url': playlist_url,
+                'error': df
+            })
+            continue
+
+        try:
+            edm_top40 = recommend_from_playlist(songDF, complete_feature_set, df)
+
+            recommendations = []
+            for i in range(min(number_of_recs, len(edm_top40))):
+                track = edm_top40.iloc[i]
+                spotify_url = "https://open.spotify.com/track/" + str(track[-6]).split("/")[-1]
+
+                if spotify_url not in seen_tracks:
+                    seen_tracks.add(spotify_url)
+                    recommendations.append({
+                        'title': str(track[1]) + ' - ' + '"' + str(track[4]) + '"',
+                        'spotify_url': spotify_url
+                    })
+
+            all_recommendations.append({
+                'playlist_url': playlist_url,
+                'recommendations': recommendations
+            })
+
+        except Exception as e:
+            app.logger.error(f'Error in generating recommendations for {playlist_url}: {e}')
+            all_recommendations.append({
+                'playlist_url': playlist_url,
+                'error': 'Internal server error'
+            })
+
+    return jsonify(all_recommendations)
+
+
+@app.route('/api/playlist/create', methods=['POST'])
+def api_create_playlist():
+   spotify_token = request.headers.get('Authorization')
+   if not spotify_token or not spotify_token.startswith('Bearer '):
+      return jsonify({'error': 'Spotify token is required'}), 401
+   
+   # remove 'Bearer ' prefix from token
+   spotify_token = spotify_token.split(' ')[1]
+
+   data = request.json
+   playlist_url = data.get('playlist_url')
+   number_of_recs = data.get('number_of_recs', 10)
+
+   if not playlist_url:
+      return jsonify({'error': 'Playlist URL is required'}), 400
+
+   # generate recs
+   df, sucess = extract(playlist_url)
+   if not sucess:
+      return jsonify({'error': df}), 400 
+   
+   edm_top40 = recommend_from_playlist(songDF, complete_feature_set, df)
+   recommendations = []
+   for i in range(number_of_recs):
+      track = edm_top40.iloc[i]
+      recommendations.append({
+            'title': str(track[1]) + ' - ' + '"' + str(track[4]) + '"',
+            'spotify_url': "https://open.spotify.com/track/" + str(track[-6]).split("/")[-1]
+      })
+
+   try:
+      track_ids = [track['spotify_url'].split("/")[-1] for track in recommendations]
+      sp = Spotify(auth=spotify_token)
+      user_id = sp.current_user()['id']
+      playlist_name = "Created by Tidalify MRS API"
+      playlist = sp.user_playlist_create(user_id, playlist_name, public=False)
+
+      sp.user_playlist_add_tracks(user_id, playlist['id'], track_ids)
+
+      return jsonify({'message': 'Playlist created successfully', 'playlist_url': playlist['external_urls']['spotify']}), 201
+
+   except Exception as e:
+      app.logger.error(f'Error in creating playlist: {e}')
+      return jsonify({'error': 'Internal server error'}), 500
+
+
+@app.route('/api/playlist/create_from_songs', methods=['POST'])
+def api_create_from_songs():
+   spotify_token = request.headers.get('Authorization')
+   if not spotify_token or not spotify_token.startswith('Bearer '):
+      return jsonify({'error': 'Spotify token is required'}), 401
+   
+   # remove 'Bearer ' prefix from token
+   spotify_token = spotify_token.split(' ')[1]
+
+   data = request.json
+   song_names = data.get('song_names')
+   attributes_dict = data.get('attributes', {})
+
+   if not song_names or len(song_names) == 0 or len(song_names) > 5:
+       return jsonify({'error': 'Please provide between 1 to 5 song names'}), 400
+   
+   for key, value in attributes_dict.item():
+       if value is not None and (value < 0 or value > 1):
+           return jsonify({'error': f'{key} level must be between 0 and 1'}), 400
+   
+    
+   # Find track IDs for the input songs
+   seed_tracks = []
+   for song_name in song_names:
+      search_url = 'https://api.spotify.com/v1/search'
+      params = {'q': song_name, 'type': 'track', 'limit': 1}
+      headers = {'Authorization': f'Bearer {spotify_token}'}
+      response = requests.get(search_url, headers=headers, params=params)
+      if response.status_code == 200 and response.json()['tracks']['items']:
+         seed_tracks.append(response.json()['tracks']['items'][0]['id'])
+
+   # Check if we have at least one seed track
+   if not seed_tracks:
+      return jsonify({'error': 'No matching tracks found for the provided song names'}), 400
+
+   # Get recommendations
+   track_urls = []
+   recommendations_url = 'https://api.spotify.com/v1/recommendations'
+   params = {
+      'seed_tracks': ','.join(seed_tracks),
+      'limit': 25
+   }
+   params.update(attributes_dict)
+   response = requests.get(recommendations_url, headers=headers, params=params)
+
+   if response.status_code == 200:
+      recommendations = response.json()['tracks']
+      track_urls = [track['external_urls']['spotify'] for track in recommendations]
+      # if successfully get recommended songs' urls
+      try:
+         # create a song list and add rec songs into that list and add this list to user's account
+         track_ids = [url.split("/")[-1] for url in track_urls]
+         sp = Spotify(auth=spotify_token)
+         user_id = sp.current_user()['id']
+         playlist_name = "Created by Tidalify MRS API"
+         playlist = sp.user_playlist_create(user_id, playlist_name, public=False)
+         sp.user_playlist_add_tracks(user_id, playlist['id'], track_ids)
+         return jsonify({'message': 'Playlist created successfully', 'playlist_url': playlist['external_urls']['spotify']}), 201
+      
+      except Exception as e:
+         app.logger.error(f'Error in creating playlist: {e}')
+         return jsonify({'error': 'Internal server error'}), 500
+      
+   else:
+      return jsonify({'error': 'Failed to get recommendations'}), response.status_code
